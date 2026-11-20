@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "cinebridge AV3",
+    "name": "cinebridge AV4",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -9,23 +9,39 @@
       "value": "http://localhost:3000"
     },
     {
+      "key": "profissionaisUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "projetosUrl",
+      "value": "http://localhost:3002"
+    },
+    {
+      "key": "notificacoesUrl",
+      "value": "http://localhost:3003"
+    },
+    {
       "key": "projetoId",
+      "value": ""
+    },
+    {
+      "key": "papel",
       "value": ""
     }
   ],
   "item": [
     {
-      "name": "Saúde",
+      "name": "Saúde da api (banco e RabbitMQ)",
       "request": {
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/saude",
+          "raw": "{{baseUrl}}/health",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "saude"
+            "health"
           ]
         }
       }
@@ -97,7 +113,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.collectionVariables.set('projetoId', pm.response.json().projetoId);"
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set('projetoId', r.projetoId);",
+              "pm.collectionVariables.set('papel', r.equipe.membros[0].papel);"
             ]
           }
         }
@@ -138,7 +156,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.collectionVariables.set('projetoId', pm.response.json().projetoId);"
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set('projetoId', r.projetoId);",
+              "pm.collectionVariables.set('papel', r.equipe.membros[0].papel);"
             ]
           }
         }
@@ -179,7 +199,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.collectionVariables.set('projetoId', pm.response.json().projetoId);"
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set('projetoId', r.projetoId);",
+              "pm.collectionVariables.set('papel', r.equipe.membros[0].papel);"
             ]
           }
         }
@@ -220,7 +242,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.collectionVariables.set('projetoId', pm.response.json().projetoId);"
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set('projetoId', r.projetoId);",
+              "pm.collectionVariables.set('papel', r.equipe.membros[0].papel);"
             ]
           }
         }
@@ -239,6 +263,297 @@
           "path": [
             "recomendacoes",
             "{{projetoId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Produtor: recusar o convite de {{papel}} (outro profissional é escolhido)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projetos/{{projetoId}}/convites",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}",
+            "convites"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"papel\": \"{{papel}}\",\n  \"aceito\": false\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Produtor: aceitar o convite de {{papel}}",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projetos/{{projetoId}}/convites",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}",
+            "convites"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"papel\": \"{{papel}}\",\n  \"aceito\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Produtor: substituir {{papel}}",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projetos/{{projetoId}}/substituicoes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}",
+            "substituicoes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"papel\": \"{{papel}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Produtor: reavaliar com novo orçamento",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projetos/{{projetoId}}/reavaliacao",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}",
+            "reavaliacao"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orcamento\": 150000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cinebridge-projetos: o projeto",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{projetosUrl}}/projetos/{{projetoId}}",
+          "host": [
+            "{{projetosUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-projetos: projetos com equipe formada",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{projetosUrl}}/projetos?status=equipe_formada",
+          "host": [
+            "{{projetosUrl}}"
+          ],
+          "path": [
+            "projetos"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "equipe_formada"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-projetos: finalizar (exige equipe formada)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{projetosUrl}}/projetos/{{projetoId}}/finalizar",
+          "host": [
+            "{{projetosUrl}}"
+          ],
+          "path": [
+            "projetos",
+            "{{projetoId}}",
+            "finalizar"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"metricas\": {\n    \"espectadores\": 1500,\n    \"festivais\": 2\n  },\n  \"resultados\": \"Estreia em festival\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cinebridge-profissionais: editores",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{profissionaisUrl}}/profissionais?papel=EDITOR",
+          "host": [
+            "{{profissionaisUrl}}"
+          ],
+          "path": [
+            "profissionais"
+          ],
+          "query": [
+            {
+              "key": "papel",
+              "value": "EDITOR"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-notificacoes: alertas do projeto",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{notificacoesUrl}}/notificacoes?projetoId={{projetoId}}",
+          "host": [
+            "{{notificacoesUrl}}"
+          ],
+          "path": [
+            "notificacoes"
+          ],
+          "query": [
+            {
+              "key": "projetoId",
+              "value": "{{projetoId}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-profissionais: saúde",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{profissionaisUrl}}/health",
+          "host": [
+            "{{profissionaisUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-projetos: saúde",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{projetosUrl}}/health",
+          "host": [
+            "{{projetosUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cinebridge-notificacoes: saúde",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{notificacoesUrl}}/health",
+          "host": [
+            "{{notificacoesUrl}}"
+          ],
+          "path": [
+            "health"
           ]
         }
       }

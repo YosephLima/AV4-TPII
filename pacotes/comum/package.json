@@ -1,0 +1,17 @@
+{
+  "name": "@cinebridge/comum",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mensageria, contratos e saúde compartilhados pelos serviços da cinebridge",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "amqplib": "2.2.1"
+  }
+}

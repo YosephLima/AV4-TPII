@@ -1,101 +1,97 @@
-# cinebridge: microsserviço de recomendação (AV3)
+# cinebridge: plataforma em microsserviços (AV4)
 
-O produtor descreve um projeto audiovisual (tipo, orçamento, data de entrega e os serviços de que precisa) e o serviço devolve a equipe recomendada, com um profissional para cada papel técnico e alternativas para cada um. Os envolvidos são notificados e tudo fica registrado em auditoria.
+O produtor descreve um projeto audiovisual (tipo, orçamento, data de entrega e os serviços de que precisa) e a plataforma devolve a equipe recomendada, com um profissional para cada papel técnico e alternativas para cada um. O produtor responde aos convites, troca quem quiser e, com a equipe formada, acompanha o projeto até a finalização. Produtor e profissionais recebem e-mails e mensagens internas a cada passo.
 
-## O que a AV3 acrescentou
+## O que a AV4 acrescentou
 
-- **Integração com serviços externos:** os arquivos podem ir para o Amazon S3, o Google Cloud ou o disco local; os pagamentos aos profissionais, para o Stripe ou o PagSeguro; e os profissionais podem vir do cadastro próprio ou do LinkedIn. Trocar de provedor é só mudar uma variável de ambiente. Os serviços externos são simulados.
-- **Projeto como pacote de serviços:** em vez de uma lista de papéis, o projeto é uma árvore (pré-produção, produção, pós-produção, cada uma com seus serviços), e o custo e o prazo são calculados a partir dela.
-- **Cache, auditoria e compressão:** podem ser ligados em qualquer combinação, pela configuração do servidor ou pelo próprio produtor na requisição.
+- **Quatro microsserviços em containers:** recomendação (a api), profissionais, projetos e notificações, cada um com o seu banco PostgreSQL.
+- **Comunicação pelo RabbitMQ:** nenhum serviço chama outro por HTTP. A api consulta profissionais e projetos por filas de pedido e resposta, e os eventos (recomendação gerada, convite aceito, projeto finalizado...) chegam ao serviço de notificações por filas de eventos.
+- **Fluxo completo do produtor:** responder convites, substituir um membro e pedir reavaliação, inclusive entre requisições, porque o projeto agora fica guardado no serviço de projetos.
+- **Saúde e resiliência:** `/health` em todos os serviços, verificando banco e broker; os serviços se recuperam sozinhos se o RabbitMQ cair.
 
-A análise de anti-padrões feita sobre o código da AV2, o funcionamento interno de cada padrão e as decisões em relação ao diagrama do enunciado estão em [`docs/AV3.md`](docs/AV3.md). O diagrama de classes está em [`diagramas/diagrama-av3.puml`](diagramas/diagrama-av3.puml).
+A arquitetura, os contratos das filas e as decisões em relação ao enunciado estão em [`docs/AV4.md`](docs/AV4.md). O diagrama de implantação está em [`diagramas/diagrama-av4.puml`](diagramas/diagrama-av4.puml).
 
 ## Padrões aplicados
 
 | Padrão | Etapa | Para que serve aqui | Onde |
 |---|---|---|---|
-| Strategy | AV1 | Algoritmos de recomendação intercambiáveis | `src/estrategias/` |
-| Template Method | AV1 | Etapas fixas da montagem da equipe | `src/orquestracao/` |
-| Observer | AV1 | Notificações e auditoria de eventos | `src/observadores/` |
-| Visitor | AV1 | Validação, compatibilidade e relatório | `src/visitantes/` |
-| Prototype | AV2 | Projetos criados a partir de modelos prontos | `src/dominio/`, `src/prototipos/` |
-| Factory Method | AV2 | Cada tipo de projeto cria seus próprios componentes | `src/fabricas/` |
-| Abstract Factory | AV2 | Uma família de componentes por tipo de projeto | `src/fabricas/` |
-| **Adapter** | AV3 | Armazenamento, pagamento e cadastro de profissionais externos | `src/adaptadores/`, `src/externos/` |
-| **Composite** | AV3 | Projeto como árvore de pacotes e serviços | `src/servicos/` |
-| **Decorator** | AV3 | Cache, auditoria e compressão em volta da recomendação | `src/decoradores/` |
+| Strategy | AV1 | Algoritmos de recomendação intercambiáveis | `servicos/api/src/estrategias/` |
+| Template Method | AV1 | Etapas fixas da montagem da equipe | `servicos/api/src/orquestracao/` |
+| Observer | AV1, AV4 | Eventos da recomendação; na AV4, os alertas disparados a partir das filas | `servicos/api/src/observadores/`, `servicos/notificacoes/src/` |
+| Visitor | AV1 | Validação, compatibilidade e relatório | `servicos/api/src/visitantes/` |
+| Prototype | AV2 | Projetos criados a partir de modelos prontos | `servicos/api/src/prototipos/` |
+| Factory Method e Abstract Factory | AV2 | Cada tipo de projeto cria a sua família de componentes | `servicos/api/src/fabricas/` |
+| Adapter | AV3, AV4 | Provedores externos; na AV4, o serviço de profissionais visto pela fila | `servicos/api/src/adaptadores/` |
+| Composite | AV3 | Projeto como árvore de pacotes e serviços | `servicos/api/src/servicos/` |
+| Decorator | AV3 | Cache, auditoria e compressão em volta da recomendação | `servicos/api/src/decoradores/` |
 
 ## Como executar
 
-### Com Docker (Windows 10+ ou Ubuntu 24.04+)
+Requisitos: **Docker Desktop** no Windows 10 ou superior, ou **Docker Engine com o plugin Compose** no Ubuntu 24.04 ou superior (e derivados). Confira com:
 
 ```bash
-docker compose up --build          # PostgreSQL + API em http://localhost:3000 (aplica migrations e seed)
-docker compose run --rm api npm test
+docker --version
+docker compose version
 ```
 
-### Sem Docker (Node.js 24+)
+Na raiz do repositório:
 
 ```bash
-npm install
-npm start          # API em http://localhost:3000, com o cadastro em memória
-npm test
-npm run test:coverage
+docker compose up -d --build     # constrói as imagens e sobe os 9 containers em segundo plano
+docker compose ps                # todos devem aparecer como healthy (leva cerca de 1 minuto)
+docker compose logs -f           # acompanha os logs (Ctrl+C para sair)
 ```
 
-Para usar o banco fora do Docker, suba só o PostgreSQL e copie `.env.example` para `.env`:
+Na primeira subida, cada serviço aplica as migrations do seu banco, e o de profissionais cadastra os profissionais de demonstração.
+
+| Endereço | O quê |
+|---|---|
+| http://localhost:3000 | cinebridge-api (ponto de entrada) |
+| http://localhost:3001 | cinebridge-profissionais |
+| http://localhost:3002 | cinebridge-projetos |
+| http://localhost:3003 | cinebridge-notificacoes |
+| http://localhost:15672 | Painel do RabbitMQ (usuário `guest`, senha `guest`): filas, taxas de entrega, mensagens descartadas |
+| localhost:5432 a 5435 | Bancos de profissionais, projetos, recomendações e notificações (usuário e senha `cinebridge`) |
+
+Para parar: `docker compose down` (mantém os dados) ou `docker compose down -v` (apaga os bancos e as filas).
+
+### Teste de ponta a ponta
+
+Com a plataforma no ar e o Node.js 24 instalado:
 
 ```bash
-docker compose up -d postgres
-npm run db:preparar   # migrations e seed
-npm start
+npm run e2e
 ```
 
-## Configuração
-
-| Variável | Padrão | Uso |
-|---|---|---|
-| `DATABASE_URL` | nenhum | Conexão com o PostgreSQL. Sem ela, o cadastro fica só em memória |
-| `PORT` | `3000` | Porta HTTP da API |
-| `ARMAZENAMENTO` | `local` | Onde guardar os arquivos: `local`, `s3` ou `gcs` |
-| `ARMAZENAMENTO_DIR` | `armazenamento` | Pasta usada quando o armazenamento é `local` |
-| `ARMAZENAMENTO_BUCKET` | `cinebridge` | Bucket do S3 ou do Google Cloud |
-| `PAGAMENTO` | `stripe` | `stripe` ou `pagseguro` |
-| `PROFISSIONAIS` | `interno` | `interno` (cadastro próprio) ou `linkedin` |
-| `DECORADORES` | `auditoria,cache,compressao` | Quais recursos ligar, de fora para dentro. Vazio desliga todos |
-| `NIVEL_COMPRESSAO` | `6` | Nível do gzip, de 1 (mais rápido) a 9 (menor) |
-
-Um valor inválido impede o servidor de subir, com uma mensagem dizendo os valores aceitos.
-
-Para trocar de provedor, basta mudar a variável e reiniciar:
-
-```bash
-ARMAZENAMENTO=s3 PAGAMENTO=pagseguro PROFISSIONAIS=linkedin npm start
-```
-
-No PowerShell:
-
-```powershell
-$env:ARMAZENAMENTO='s3'; $env:PAGAMENTO='pagseguro'; $env:PROFISSIONAIS='linkedin'; npm start
-```
-
-Sobre os recursos de `DECORADORES`:
-
-- **`cache`:** reaproveita a recomendação de pedidos equivalentes, inclusive de projetos diferentes com os mesmos requisitos.
-- **`auditoria`:** registra no log cada recomendação calculada, com o tempo de resposta.
-- **`compressao`:** grava o ranking completo comprimido no armazenamento, em `rankings/`.
-
-A ordem importa: com `auditoria,cache`, a auditoria registra também as respostas que vieram do cache.
+Ele confere a saúde dos quatro serviços e percorre o fluxo inteiro: recomendação, recusa e aceite dos convites, projeto registrado e finalizado no serviço de projetos, as notificações de cada etapa e o estado das filas no RabbitMQ. Sem o npm, `node scripts/e2e.mjs` faz o mesmo.
 
 ## Endpoints
 
+### cinebridge-api (3000)
+
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/saude` | Verificação de funcionamento |
-| GET | `/profissionais` | Profissionais da fonte configurada |
+| GET | `/health` | Saúde: banco e RabbitMQ |
+| GET | `/profissionais` | Profissionais da fonte configurada (por padrão, o serviço de profissionais) |
 | GET | `/modelos` | Tipos de projeto e modelos disponíveis em cada um |
-| POST | `/recomendacoes` | Cria o projeto e devolve a equipe recomendada |
-| GET | `/recomendacoes/:id` | Consulta uma recomendação já feita |
+| POST | `/recomendacoes` | Cria o projeto, devolve a equipe recomendada e registra o projeto no serviço de projetos |
+| GET | `/recomendacoes/:id` | Situação atual da recomendação de um projeto |
+| POST | `/projetos/:id/convites` | Resposta de um profissional ao convite: `{ "papel": "EDITOR", "aceito": true }`. Uma recusa já escolhe outro profissional |
+| POST | `/projetos/:id/substituicoes` | Troca o profissional de um papel: `{ "papel": "EDITOR" }` |
+| POST | `/projetos/:id/reavaliacao` | Refaz a equipe inteira, opcionalmente com `{ "orcamento": 150000, "prazo": "2027-06-30" }` |
+
+### Outros serviços
+
+| Serviço | Método | Rota | Descrição |
+|---|---|---|---|
+| profissionais (3001) | GET | `/profissionais?papel=EDITOR&localizacao=São Paulo` | Cadastro, com filtros opcionais |
+| profissionais (3001) | GET | `/profissionais/:id` | Um profissional, com competências e avaliações |
+| projetos (3002) | GET | `/projetos?status=equipe_formada&produtor=...` | Projetos, com filtros opcionais |
+| projetos (3002) | GET | `/projetos/:id` | Um projeto, com a situação e a composição final da equipe |
+| projetos (3002) | POST | `/projetos/:id/finalizar` | Encerra a produção: `{ "metricas": { "espectadores": 1500 }, "resultados": "..." }`. Exige equipe formada |
+| notificações (3003) | GET | `/notificacoes?projetoId=...&destinatario=...&canal=email` | Alertas já enviados |
+
+Todos têm `GET /health`.
 
 ### O que enviar em `POST /recomendacoes`
 
@@ -103,42 +99,32 @@ Só `tipo`, `nome` e `produtor` são obrigatórios. O resto vem de um modelo pro
 
 - **`orcamento`, `prazo`, `localizacao`, `genero`, `duracao`:** ajustes do projeto.
 - **`detalhes`:** o que é próprio do tipo (tema e entrevistados no documentário, técnica e quadros por segundo na animação, cliente e veiculação na publicidade).
-- **`servico`:** os serviços do projeto, se você não quiser os do modelo. Um pacote tem `servicos`; um serviço tem `papel`, `custo`, `prazo` e, se quiser, `competencias`:
-
-  ```json
-  "servico": {
-    "nome": "Pós-produção",
-    "servicos": [
-      { "nome": "Montagem", "papel": "EDITOR", "custo": 6000, "prazo": "2027-03-20" },
-      { "nome": "Som", "servicos": [
-        { "nome": "Mixagem", "papel": "SONOPLASTA", "custo": 3000, "prazo": "2027-03-25" }
-      ] }
-    ]
-  }
-  ```
-
+- **`servico`:** a árvore de serviços do projeto, se você não quiser a do modelo. Um pacote tem `servicos`; um serviço tem `papel`, `custo`, `prazo` e, se quiser, `competencias`.
 - **`estrategia`:** outro algoritmo de recomendação (`cosseno`, `colaborativa` ou `orcamento`).
 - **`decoradores`:** os recursos que o produtor quer só para este projeto, como `["auditoria", "cache"]`.
 
-A resposta traz a equipe, o custo estimado dos serviços, a árvore de serviços com o responsável de cada um, a validação e um relatório em texto. Se o projeto não atender às regras do seu tipo (por exemplo, um serviço que termina depois da entrega ou um custo acima do orçamento), a resposta é `422`, com a lista de `motivos`.
+Se o projeto não atender às regras do seu tipo, a resposta é `422`, com a lista de `motivos`.
 
-### Com curl
+### Um fluxo completo com curl
 
 No Linux, ou com `curl.exe` no PowerShell:
 
 ```bash
 curl -X POST http://localhost:3000/recomendacoes -H "content-type: application/json" -d @exemplos/documentario.json
-curl -X POST http://localhost:3000/recomendacoes -H "content-type: application/json" -d @exemplos/animacao.json
-curl -X POST http://localhost:3000/recomendacoes -H "content-type: application/json" -d @exemplos/ficcao-pilha.json
-curl --compressed -X POST http://localhost:3000/recomendacoes -H "content-type: application/json" -d @exemplos/publicitario-modelo.json
-curl http://localhost:3000/recomendacoes/<projetoId>
+# guarde o projetoId da resposta e os papéis da equipe
+curl -X POST http://localhost:3000/projetos/<projetoId>/convites -H "content-type: application/json" -d "{\"papel\":\"EDITOR\",\"aceito\":false}"
+curl -X POST http://localhost:3000/projetos/<projetoId>/convites -H "content-type: application/json" -d "{\"papel\":\"EDITOR\",\"aceito\":true}"
+# ... aceite os demais papéis; com todos aceitos, a equipe é formada
+curl http://localhost:3002/projetos/<projetoId>
+curl -X POST http://localhost:3002/projetos/<projetoId>/finalizar -H "content-type: application/json" -d "{\"resultados\":\"Estreia em festival\"}"
+curl "http://localhost:3003/notificacoes?projetoId=<projetoId>"
 ```
 
-Com `--compressed`, a resposta vem comprimida (gzip), o que reduz o tráfego quando ela passa de 1 KB.
+Outros pedidos prontos estão em `exemplos/` (`animacao.json`, `ficcao-pilha.json`, `publicitario-modelo.json`).
 
 ### Com Postman, Insomnia ou Thunder Client
 
-O arquivo `exemplos/cinebridge.postman_collection.json` traz todas as requisições prontas, inclusive dois exemplos de erro. A URL base fica na variável `baseUrl` (`http://localhost:3000`). No Postman, cada recomendação guarda o `projetoId` para a consulta; nas outras ferramentas, cole o id à mão.
+O arquivo `exemplos/cinebridge.postman_collection.json` traz todas as requisições, dos quatro serviços, inclusive o fluxo do produtor e dois exemplos de erro. No Postman, cada recomendação guarda o `projetoId` e o primeiro papel da equipe (`papel`), que as requisições seguintes usam; nas outras ferramentas, preencha essas variáveis à mão.
 
 | Ferramenta | Como importar |
 |---|---|
@@ -146,34 +132,60 @@ O arquivo `exemplos/cinebridge.postman_collection.json` traz todas as requisiç�
 | Insomnia | **Import** na tela do projeto, opção de arquivo, e escolher o arquivo |
 | Thunder Client (VS Code) | aba **Collections**, menu da aba, **Import** e escolher o arquivo |
 
+## Configuração
+
+Cada serviço lê o seu `servicos/<serviço>/.env`, e cada banco o seu `servicos/<serviço>/banco.env`. Os nomes de host (`cinebridge-mq`, `profissionais-db`...) são os serviços do compose, resolvidos na rede `cinebridge-net`.
+
+| Variável | Serviços | Uso |
+|---|---|---|
+| `PORT` | todos | Porta HTTP |
+| `DATABASE_URL` | todos | Banco do serviço |
+| `RABBITMQ_URL` | todos | Conexão AMQP, por exemplo `amqp://guest:guest@cinebridge-mq:5672` |
+| `RPC_TEMPO_LIMITE_MS` | api | Quanto esperar a resposta de outro serviço antes de responder 503 (padrão 5000) |
+| `PROFISSIONAIS` | api | `fila` (o serviço de profissionais, padrão com broker), `interno` (memória) ou `linkedin` (simulado) |
+| `ARMAZENAMENTO`, `ARMAZENAMENTO_DIR` | api | Onde guardar o ranking comprimido: `local` (volume `api-arquivos`), `s3` ou `gcs` (simulados) |
+| `PAGAMENTO` | api | `stripe` ou `pagseguro` (simulados) |
+| `DECORADORES`, `NIVEL_COMPRESSAO` | api | Pilha de decoradores, de fora para dentro, e nível do gzip |
+
+Um valor inválido impede o serviço de subir, com uma mensagem dizendo os valores aceitos. Depois de mudar um `.env`, recrie o container: `docker compose up -d`.
+
+## Desenvolvimento
+
+Com o Node.js 24 ou superior:
+
+```bash
+npm install          # instala todos os pacotes do monorepo e gera os clientes do Prisma
+npm test             # testes de todos os pacotes (não precisam de Docker)
+npm run typecheck
+```
+
+Sem `RABBITMQ_URL` e `DATABASE_URL`, a api roda sozinha, como na AV3, com profissionais e projetos em memória:
+
+```bash
+cd servicos/api
+RABBITMQ_URL= DATABASE_URL= PROFISSIONAIS=interno npm start
+```
+
+No PowerShell: `$env:RABBITMQ_URL=''; $env:DATABASE_URL=''; $env:PROFISSIONAIS='interno'; npm start`.
+
 ## Compatibilidade
 
-- **Com Docker,** a API e o banco rodam no mesmo ambiente Linux em qualquer sistema. No Windows 10+, basta o Docker Desktop.
-- **Sem Docker,** o projeto só depende do Node.js 24+. Os scripts não usam sintaxe exclusiva de um shell, o fim de linha é fixado em LF e os caminhos de arquivo funcionam igual no Windows e no Linux.
-- Testado no Ubuntu, tanto direto no sistema quanto pelo Docker. No Windows não foi testado.
+- **Com Docker,** todos os serviços rodam no mesmo ambiente Linux em qualquer sistema. No Windows 10 ou superior, basta o Docker Desktop (com WSL 2).
+- **Sem Docker,** só os testes e a api sozinha, com o Node.js 24 ou superior. Os scripts não usam sintaxe exclusiva de um shell (o e2e é Node puro), o fim de linha é fixado em LF e os caminhos funcionam igual no Windows e no Linux.
+- Testado no Ubuntu. No Windows não foi testado.
 
 ## Estrutura
 
 ```
-src/
-  dominio/        entidades; Projeto e suas subclasses
-  servicos/       árvore de serviços do projeto
-  prototipos/     modelos prontos de cada tipo
-  fabricas/       uma fábrica por tipo de projeto
-  estrategias/    algoritmos de recomendação
-  decoradores/    cache, auditoria e compressão
-  adaptadores/    armazenamento, pagamento e fontes de profissionais
-  externos/       serviços externos simulados (S3, Google Cloud, Stripe, PagSeguro, LinkedIn)
-  contratacao/    pagamento da equipe e arquivo das recomendações
-  orquestracao/   montagem da equipe
-  observadores/   notificações e auditoria de eventos
-  visitantes/     validação, compatibilidade e relatório
-  repositorio/    cadastro de profissionais (PostgreSQL, com reserva em memória)
-  http/           API
-  composicao.ts   onde as peças são montadas
-prisma/           banco: schema, migrations e seed
-docs/             análise e decisões de projeto
-diagramas/        diagramas de classes
-exemplos/         requisições prontas
-tests/            testes
+pacotes/comum/              mensageria (RabbitMQ e versão em memória), RPC, eventos, contratos das filas, /health
+servicos/api/               cinebridge-api: o código das AVs 1 a 3, o fluxo do produtor e a ponte com as filas
+servicos/profissionais/     cinebridge-profissionais
+servicos/projetos/          cinebridge-projetos
+servicos/notificacoes/      cinebridge-notificacoes
+  cada serviço: src/, tests/, prisma/ (schema e migrations), Dockerfile, .env, banco.env
+docker-compose.yml          os 9 containers, a rede cinebridge-net e os volumes
+scripts/e2e.mjs             teste de ponta a ponta
+docs/                       decisões de projeto (AV3 e AV4)
+diagramas/                  diagramas de classes (AV2, AV3) e de implantação (AV4)
+exemplos/                   pedidos prontos e coleção do Postman
 ```

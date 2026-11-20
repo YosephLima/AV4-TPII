@@ -1,34 +1,28 @@
 {
-  "name": "cinebridge-recomendacao",
+  "name": "cinebridge",
   "version": "1.0.0",
   "private": true,
-  "description": "Microsserviço de recomendação e orquestração de equipes da plataforma cinebridge (AV3)",
+  "description": "Plataforma cinebridge em microsserviços containerizados (AV4)",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "workspaces": [
+    "pacotes/comum",
+    "servicos/api",
+    "servicos/profissionais",
+    "servicos/projetos",
+    "servicos/notificacoes"
+  ],
   "scripts": {
-    "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "postinstall": "prisma generate",
-    "db:preparar": "prisma migrate deploy && prisma db seed"
-  },
-  "dependencies": {
-    "@fastify/compress": "9.2.2",
-    "@prisma/adapter-pg": "7.10.1",
-    "@prisma/client": "7.10.1",
-    "dotenv": "18.0.8",
-    "fastify": "^5.12.7",
-    "tsx": "^4.23.15"
+    "postinstall": "npm run gerar --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "e2e": "node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.0.5",
-    "prisma": "7.10.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }

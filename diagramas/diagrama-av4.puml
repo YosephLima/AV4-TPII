@@ -1,0 +1,76 @@
+@startuml
+!theme plain
+skinparam component {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+}
+skinparam database {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam queue {
+  BackgroundColor White
+  BorderColor Black
+}
+title cinebridge AV4: diagrama de implantação (containers, filas e portas)
+
+actor "Produtor" as produtor
+actor "Operador" as operador
+
+node "Docker: rede cinebridge-net (bridge)" {
+
+  component "cinebridge-api\n:3000\n(recomendação e orquestração)" as api
+  component "cinebridge-profissionais\n:3001\n(cadastro de profissionais)" as prof
+  component "cinebridge-projetos\n:3002\n(ciclo de vida dos projetos)" as proj
+  component "cinebridge-notificacoes\n:3003\n(e-mails e mensagens internas)" as notif
+
+  node "cinebridge-mq\nrabbitmq:3-management-alpine\n:5672 AMQP, :15672 painel" as mq {
+    queue "consulta-profissionais\n(RPC, durável)" as qprof
+    queue "consulta-projetos\n(RPC, durável)" as qproj
+    queue "eventos-projetos\n(durável)" as qevproj
+    queue "eventos-recomendacao\n(durável)" as qevrec
+    queue "amq.gen-*\n(respostas da api, exclusiva)" as qresp
+  }
+
+  database "recomendacoes-db\npostgres:15-alpine\n:5434" as recdb
+  database "profissionais-db\npostgres:15-alpine\n:5432" as profdb
+  database "projetos-db\npostgres:15-alpine\n:5433" as projdb
+  database "notificacoes-db\npostgres:15-alpine\n:5435" as notdb
+}
+
+produtor --> api : HTTP\nPOST /recomendacoes\nPOST /projetos/:id/convites...
+produtor --> proj : HTTP\nPOST /projetos/:id/finalizar
+operador ..> mq : painel :15672\n(guest/guest)
+
+api --> qprof : publica pedido\n(replyTo, correlationId)
+qprof --> prof : consome
+prof --> qresp : publica resposta
+qresp --> api : consome
+
+api --> qproj : publica pedido
+qproj --> proj : consome
+proj --> qresp : publica resposta
+
+proj --> qevproj : publica\nprojeto_criado / atualizado / finalizado
+api --> qevrec : publica\nrecomendacao_gerada, convite_*,\nequipe_formada, convite_enviado...
+qevproj --> notif : consome (Observer)
+qevrec --> notif : consome (Observer)
+
+api --> recdb : recomendações\ne estado da equipe
+prof --> profdb : profissionais
+proj --> projdb : projetos
+notif --> notdb : notificações enviadas
+
+note bottom of mq
+  Nenhum serviço chama outro por HTTP: toda conversa passa pelo broker.
+  Filas duráveis, mensagens persistentes, confirmação do broker (publisher confirms) e ack manual.
+  Cada fila tem a sua <fila>.descartadas (DLQ): mensagem recusada ou pedido expirado vai para lá,
+  sem voltar à fila original.
+end note
+
+note right of api
+  Seta eventos-recomendacao e fila consulta-projetos:
+  lacunas do enunciado, decididas em docs/AV4.md.
+end note
+@enduml

@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Situação atual da recomendação de cada projeto.
+model Recomendacao {
+  projetoId     String   @id
+  tipo          String
+  nome          String
+  produtor      String
+  custoEstimado Float
+  status        String
+  /// Resumo da equipe atual, o que GET /recomendacoes/:id devolve.
+  equipe        Json
+  /// Estado completo (ranking, confirmações, pagamentos), para retomar o fluxo do produtor.
+  estado        Json
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+  rodadas       Rodada[]
+}
+
+/// Histórico: uma linha a cada mudança na equipe (recomendação, convite, substituição, reavaliação).
+model Rodada {
+  id           Int          @id @default(autoincrement())
+  projetoId    String
+  recomendacao Recomendacao @relation(fields: [projetoId], references: [projetoId], onDelete: Cascade)
+  equipeId     String
+  status       String
+  equipe       Json
+  criadoEm     DateTime     @default(now())
+
+  @@index([projetoId])
+}

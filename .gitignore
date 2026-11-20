@@ -2,4 +2,7 @@ node_modules/
 coverage/
 generated/
 .env
+# Os .env dos serviços são versionados: só têm credenciais de desenvolvimento e o compose precisa deles.
+!servicos/*/.env
 /armazenamento/
+servicos/api/armazenamento/

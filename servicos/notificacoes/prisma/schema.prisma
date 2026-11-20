@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Canal {
+  email
+  interna
+}
+
+/// Cada alerta enviado. A chave única impede que um evento entregue duas vezes gere alertas repetidos.
+model Notificacao {
+  id           Int      @id @default(autoincrement())
+  eventoId     String
+  tipoEvento   String
+  origem       String
+  projetoId    String?
+  canal        Canal
+  destinatario String
+  assunto      String
+  conteudo     String
+  criadoEm     DateTime @default(now())
+
+  @@unique([eventoId, canal, destinatario])
+  @@index([destinatario])
+  @@index([projetoId])
+}

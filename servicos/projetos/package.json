@@ -1,0 +1,25 @@
+{
+  "name": "@cinebridge/projetos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "cinebridge-projetos: ciclo de vida dos projetos, atendendo a fila consulta-projetos e publicando em eventos-projetos",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "container": "npm run db:preparar && npm start",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "gerar": "prisma generate",
+    "db:preparar": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@cinebridge/comum": "1.0.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "dotenv": "18.0.8",
+    "fastify": "^5.12.7",
+    "prisma": "7.10.1",
+    "tsx": "^4.23.15"
+  }
+}

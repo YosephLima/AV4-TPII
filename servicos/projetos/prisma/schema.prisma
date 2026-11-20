@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StatusProjeto {
+  em_formacao
+  equipe_formada
+  finalizado
+}
+
+model Projeto {
+  id            String        @id
+  tipo          String
+  nome          String
+  produtor      String
+  status        StatusProjeto @default(em_formacao)
+  orcamento     Float
+  prazo         DateTime      @db.Date
+  custoEstimado Float
+  /// Pedido com que a api criou o projeto; ela o usa para recriar o objeto de domínio.
+  solicitacao   Json
+  /// Composição final, quando a equipe é formada.
+  equipe        Json?
+  metricas      Json?
+  resultados    String?
+  criadoEm      DateTime      @default(now())
+  atualizadoEm  DateTime      @updatedAt
+  finalizadoEm  DateTime?
+
+  @@index([produtor])
+  @@index([status])
+}
